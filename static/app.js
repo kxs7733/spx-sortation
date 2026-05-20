@@ -130,8 +130,12 @@ $("submitBtn").addEventListener("click", async () => {
 
   try {
     const r = await fetch("/api/submit", { method: "POST", body: fd });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Submit failed");
+    const text = await r.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch (_) {
+      throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+    }
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
     toast(`Submitted — ${data.status}`, "ok");
     // reset photo
     state.photoFile = null;
