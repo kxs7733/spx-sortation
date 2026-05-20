@@ -91,6 +91,33 @@ def submit():
     return jsonify({"ok": True, "status": status, "distance_m": distance_m})
 
 
+@app.route("/api/debug")
+def debug():
+    """Diagnose env vars + OneMap auth. Remove once stable."""
+    import requests
+    out = {
+        "SHEET_ID_set": bool(os.environ.get("SHEET_ID")),
+        "DRIVE_FOLDER_ID_set": bool(DRIVE_FOLDER_ID),
+        "ONEMAP_EMAIL_set": bool(os.environ.get("ONEMAP_EMAIL")),
+        "ONEMAP_PASSWORD_set": bool(os.environ.get("ONEMAP_PASSWORD")),
+        "GOOGLE_CREDS_inline": bool(os.environ.get("GOOGLE_CREDENTIALS_JSON")),
+    }
+    try:
+        r = requests.post(
+            "https://www.onemap.gov.sg/api/auth/post/getToken",
+            json={
+                "email": os.environ.get("ONEMAP_EMAIL", ""),
+                "password": os.environ.get("ONEMAP_PASSWORD", ""),
+            },
+            timeout=10,
+        )
+        out["onemap_status"] = r.status_code
+        out["onemap_body"] = r.text[:300]
+    except Exception as e:
+        out["onemap_error"] = repr(e)
+    return jsonify(out)
+
+
 @app.route("/api/history")
 def history():
     driver_id = request.args.get("driver_id", "").strip()
