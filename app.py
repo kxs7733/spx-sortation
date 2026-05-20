@@ -1,9 +1,14 @@
 """SPX Sortation proof webapp."""
+import logging
 import os
+import traceback
 import uuid
 from datetime import datetime, timezone, timedelta
 
 from flask import Flask, jsonify, render_template, request
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("spx")
 
 import google_io
 from config import AGENCIES, DRIVERS, FAR_THRESHOLD_METERS, MSCPS, SHEET_HEADERS
@@ -50,45 +55,53 @@ def geocode():
 
 @app.route("/api/submit", methods=["POST"])
 def submit():
-    driver_id = request.form.get("driver_id", "").strip()
-    agency = request.form.get("agency", "").strip()
-    mscp_id = request.form.get("mscp_id", "").strip()
-    lat = float(request.form.get("lat"))
-    lon = float(request.form.get("lon"))
-    photo = request.files.get("photo")
+    try:
+        driver_id = request.form.get("driver_id", "").strip()
+        agency = request.form.get("agency", "").strip()
+        mscp_id = request.form.get("mscp_id", "").strip()
+        lat_raw = request.form.get("lat", "")
+        lon_raw = request.form.get("lon", "")
+        photo = request.files.get("photo")
 
-    if not (driver_id and agency and mscp_id and photo):
-        return jsonify({"error": "Missing required fields"}), 400
+        if not (driver_id and agency and mscp_id and photo and lat_raw and lon_raw):
+            return jsonify({"error": "Missing required fields"}), 400
 
-    info = reverse_geocode(lat, lon)
-    _, distance_m = nearest_mscp(lat, lon)
-    distance_m = round(distance_m)
-    status = "Review" if distance_m > FAR_THRESHOLD_METERS else "Valid"
-    timestamp = datetime.now(SGT).strftime("%Y-%m-%d %H:%M:%S")
+        lat = float(lat_raw)
+        lon = float(lon_raw)
 
-    ext = (photo.filename.rsplit(".", 1)[-1] if "." in photo.filename else "jpg").lower()
-    fname = f"{driver_id}_{datetime.now(SGT).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.{ext}"
-    photo_link = ""
-    if DRIVE_FOLDER_ID:
-        photo_link = google_io.upload_photo(
-            DRIVE_FOLDER_ID, fname, photo.read(), photo.mimetype or "image/jpeg"
-        )
+        info = reverse_geocode(lat, lon)
+        _, distance_m = nearest_mscp(lat, lon)
+        distance_m = round(distance_m)
+        status = "Review" if distance_m > FAR_THRESHOLD_METERS else "Valid"
+        timestamp = datetime.now(SGT).strftime("%Y-%m-%d %H:%M:%S")
 
-    google_io.ensure_header(SHEET_ID, SHEET_HEADERS)
-    google_io.append_row(SHEET_ID, [
-        driver_id,
-        agency,
-        mscp_id,
-        timestamp,
-        lat,
-        lon,
-        (info["address"] + (f" S{info['postal']}" if info["postal"] else "")).strip(),
-        distance_m,
-        status,
-        photo_link,
-    ])
+        ext = (photo.filename.rsplit(".", 1)[-1] if "." in photo.filename else "jpg").lower()
+        fname = f"{driver_id}_{datetime.now(SGT).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.{ext}"
+        photo_link = ""
+        if DRIVE_FOLDER_ID:
+            try:
+                photo_link = google_io.upload_photo(
+                    DRIVE_FOLDER_ID, fname, photo.read(), photo.mimetype or "image/jpeg"
+                )
+            except Exception as e:
+                log.exception("Drive upload failed")
+                return jsonify({"error": f"Drive upload failed: {type(e).__name__}: {e}"}), 500
 
-    return jsonify({"ok": True, "status": status, "distance_m": distance_m})
+        try:
+            google_io.ensure_header(SHEET_ID, SHEET_HEADERS)
+            google_io.append_row(SHEET_ID, [
+                driver_id, agency, mscp_id, timestamp, lat, lon,
+                (info["address"] + (f" S{info['postal']}" if info["postal"] else "")).strip(),
+                distance_m, status, photo_link,
+            ])
+        except Exception as e:
+            log.exception("Sheet append failed")
+            return jsonify({"error": f"Sheet append failed: {type(e).__name__}: {e}"}), 500
+
+        return jsonify({"ok": True, "status": status, "distance_m": distance_m})
+    except Exception as e:
+        log.exception("Submit failed")
+        return jsonify({"error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()[-800:]}), 500
 
 
 @app.route("/api/debug")
