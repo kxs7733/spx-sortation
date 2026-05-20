@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SPX Sortation</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 0 1-8 0"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-title">SPX Sortation</div>
+      <div class="brand-sub">Daily compliance check</div>
+    </div>
+  </div>
+  <div class="date-pill" id="datePill">--</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="submit">
+    <span class="tab-ico">📸</span> Submit
+  </button>
+  <button class="tab" data-tab="history">
+    <span class="tab-ico">📋</span> History
+  </button>
+</nav>
+
+<main>
+
+<!-- ============== SUBMIT TAB ============== -->
+<section id="tab-submit" class="tab-pane active">
+
+  <div class="card">
+    <div class="card-row">
+      <div class="card-label">LOCATION</div>
+      <div class="chip chip-warn hidden" id="farChip">Far from MSCP</div>
+    </div>
+
+    <div class="loc-row">
+      <div class="loc-pin">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0Z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+      </div>
+      <div class="loc-text">
+        <div class="loc-addr" id="locAddr">Locating…</div>
+        <div class="loc-sub" id="locSub">Waiting for GPS</div>
+      </div>
+    </div>
+
+    <div class="kv-grid">
+      <div>
+        <div class="kv-k">AGENCY</div>
+        <select id="agency" class="kv-input"></select>
+      </div>
+      <div>
+        <div class="kv-k">MSCP ID</div>
+        <select id="mscp" class="kv-input"></select>
+      </div>
+      <div>
+        <div class="kv-k">DRIVER ID</div>
+        <select id="driver" class="kv-input"></select>
+      </div>
+      <div></div>
+      <div>
+        <div class="kv-k">LATITUDE</div>
+        <div class="kv-v mono" id="latVal">—</div>
+      </div>
+      <div>
+        <div class="kv-k">LONGITUDE</div>
+        <div class="kv-v mono" id="lonVal">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">SORTATION PHOTO</div>
+    <label for="photo" class="dropzone" id="dropzone">
+      <div class="dz-icon">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="white"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <div class="dz-title">Take Photo</div>
+      <div class="dz-sub">Tap to open camera</div>
+      <img id="preview" class="dz-preview hidden" alt="preview" />
+    </label>
+    <input type="file" id="photo" accept="image/*" capture="environment" hidden />
+  </div>
+
+  <button class="submit-btn" id="submitBtn" disabled>Submit Sortation Check</button>
+
+  <div class="toast hidden" id="toast"></div>
+
+</section>
+
+
+<!-- ============== HISTORY TAB ============== -->
+<section id="tab-history" class="tab-pane">
+  <div id="historyList" class="history-list">
+    <div class="empty">Loading…</div>
+  </div>
+</section>
+
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
