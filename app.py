@@ -104,44 +104,6 @@ def submit():
         return jsonify({"error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()[-800:]}), 500
 
 
-@app.route("/api/debug")
-def debug():
-    """Diagnose env vars + OneMap auth. Remove once stable."""
-    import requests
-    out = {
-        "SHEET_ID_set": bool(os.environ.get("SHEET_ID")),
-        "DRIVE_FOLDER_ID_set": bool(DRIVE_FOLDER_ID),
-        "ONEMAP_EMAIL_set": bool(os.environ.get("ONEMAP_EMAIL")),
-        "ONEMAP_PASSWORD_set": bool(os.environ.get("ONEMAP_PASSWORD")),
-        "GOOGLE_CREDS_inline": bool(os.environ.get("GOOGLE_CREDENTIALS_JSON")),
-        "OAUTH_CLIENT_ID_set": bool(os.environ.get("OAUTH_CLIENT_ID")),
-        "OAUTH_CLIENT_SECRET_set": bool(os.environ.get("OAUTH_CLIENT_SECRET")),
-        "OAUTH_REFRESH_TOKEN_set": bool(os.environ.get("OAUTH_REFRESH_TOKEN")),
-        "env_keys_starting_O_or_G": sorted(
-            k for k in os.environ.keys() if k.startswith(("O", "G", "DRIVE", "SHEET"))
-        ),
-    }
-    raw_email = os.environ.get("ONEMAP_EMAIL", "")
-    raw_pwd = os.environ.get("ONEMAP_PASSWORD", "")
-    out["onemap_email_raw_len"] = len(raw_email)
-    out["onemap_email_stripped_len"] = len(raw_email.strip())
-    out["onemap_email_first_5"] = raw_email[:5]
-    out["onemap_email_last_5"] = raw_email[-5:]
-    out["onemap_pwd_raw_len"] = len(raw_pwd)
-    out["onemap_pwd_stripped_len"] = len(raw_pwd.strip())
-    try:
-        r = requests.post(
-            "https://www.onemap.gov.sg/api/auth/post/getToken",
-            json={"email": raw_email.strip(), "password": raw_pwd.strip()},
-            timeout=10,
-        )
-        out["onemap_status"] = r.status_code
-        out["onemap_body"] = r.text[:300]
-    except Exception as e:
-        out["onemap_error"] = repr(e)
-    return jsonify(out)
-
-
 @app.route("/api/history")
 def history():
     driver_id = request.args.get("driver_id", "").strip()
