@@ -100,10 +100,9 @@ function locate() {
 }
 
 // ============== photo ==============
-$("photo").addEventListener("change", (e) => {
+$("photo").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  state.photoFile = f;
   const url = URL.createObjectURL(f);
   const img = $("preview");
   img.src = url;
@@ -111,8 +110,27 @@ $("photo").addEventListener("change", (e) => {
   $("dropzone").querySelector(".dz-icon").classList.add("hidden");
   $("dropzone").querySelector(".dz-title").classList.add("hidden");
   $("dropzone").querySelector(".dz-sub").classList.add("hidden");
+  // Compress client-side to keep upload fast/reliable
+  try {
+    state.photoFile = await compressImage(f, 1600, 0.82);
+  } catch (err) {
+    state.photoFile = f;  // fall back to original on any failure
+  }
   updateSubmitEnabled();
 });
+
+async function compressImage(file, maxEdge, quality) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+  const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
+  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+}
 
 // ============== submit ==============
 $("submitBtn").addEventListener("click", async () => {

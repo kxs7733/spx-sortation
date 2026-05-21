@@ -94,16 +94,25 @@ def read_rows(sheet_id: str, limit: int = 200) -> list:
 
 
 def upload_photo(folder_id: str, filename: str, data: bytes, mime: str = "image/jpeg") -> str:
-    """Upload bytes to Drive folder, return webViewLink."""
-    media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime, resumable=False)
-    meta = {"name": filename, "parents": [folder_id]}
-    f = drive().files().create(
-        body=meta, media_body=media, fields="id, webViewLink"
-    ).execute()
-    # Make readable by anyone with the link.
-    drive().permissions().create(
-        fileId=f["id"],
-        body={"type": "anyone", "role": "reader"},
-        fields="id",
-    ).execute()
-    return f["webViewLink"]
+    """Upload bytes to Drive folder, return webViewLink. Resumable + 2x retry on transient errors."""
+    import time
+    last_err = None
+    for attempt in range(3):
+        try:
+            media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime, resumable=True, chunksize=1024 * 1024)
+            meta = {"name": filename, "parents": [folder_id]}
+            f = drive().files().create(
+                body=meta, media_body=media, fields="id, webViewLink"
+            ).execute()
+            drive().permissions().create(
+                fileId=f["id"],
+                body={"type": "anyone", "role": "reader"},
+                fields="id",
+            ).execute()
+            return f["webViewLink"]
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
