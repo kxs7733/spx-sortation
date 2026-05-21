@@ -114,6 +114,9 @@ def debug():
         "ONEMAP_EMAIL_set": bool(os.environ.get("ONEMAP_EMAIL")),
         "ONEMAP_PASSWORD_set": bool(os.environ.get("ONEMAP_PASSWORD")),
         "GOOGLE_CREDS_inline": bool(os.environ.get("GOOGLE_CREDENTIALS_JSON")),
+        "OAUTH_CLIENT_ID_set": bool(os.environ.get("OAUTH_CLIENT_ID")),
+        "OAUTH_CLIENT_SECRET_set": bool(os.environ.get("OAUTH_CLIENT_SECRET")),
+        "OAUTH_REFRESH_TOKEN_set": bool(os.environ.get("OAUTH_REFRESH_TOKEN")),
     }
     try:
         r = requests.post(

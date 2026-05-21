@@ -1,25 +1,39 @@
-"""Google Sheets + Drive client via service account."""
+"""Google Sheets (service account) + Drive (user OAuth) clients.
+
+Service accounts can't upload to personal Drive (no storage quota), so photo
+upload uses the user's OAuth refresh token; sheet writes use the service account.
+"""
 import io
 import json
 import os
 
 from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials as UserCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
+SA_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
-def _credentials():
+def _sa_credentials():
     raw = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if raw:
         info = json.loads(raw)
-        return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        return service_account.Credentials.from_service_account_info(info, scopes=SA_SCOPES)
     path = os.environ.get("GOOGLE_CREDENTIALS_FILE", "service-account.json")
-    return service_account.Credentials.from_service_account_file(path, scopes=SCOPES)
+    return service_account.Credentials.from_service_account_file(path, scopes=SA_SCOPES)
+
+
+def _user_credentials():
+    """OAuth user creds for Drive upload — file is owned by the user, no SA quota issue."""
+    return UserCredentials(
+        token=None,  # forces refresh on first call
+        refresh_token=os.environ["OAUTH_REFRESH_TOKEN"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.environ["OAUTH_CLIENT_ID"],
+        client_secret=os.environ["OAUTH_CLIENT_SECRET"],
+        scopes=["https://www.googleapis.com/auth/drive"],
+    )
 
 
 _sheets = None
@@ -29,14 +43,14 @@ _drive = None
 def sheets():
     global _sheets
     if _sheets is None:
-        _sheets = build("sheets", "v4", credentials=_credentials(), cache_discovery=False)
+        _sheets = build("sheets", "v4", credentials=_sa_credentials(), cache_discovery=False)
     return _sheets
 
 
 def drive():
     global _drive
     if _drive is None:
-        _drive = build("drive", "v3", credentials=_credentials(), cache_discovery=False)
+        _drive = build("drive", "v3", credentials=_user_credentials(), cache_discovery=False)
     return _drive
 
 
