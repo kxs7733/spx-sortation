@@ -51,13 +51,14 @@ function recomputeDistance() {
   const parts = [];
   if (m && m.lat != null && m.lon != null) {
     const d = Math.round(haversineM(state.lat, state.lon, m.lat, m.lon));
-    parts.push(`${d}m from ${m.id}`);
+    const shortAddr = (m.address || m.id).replace(/\s+S\d{6}\s*$/, "");
+    parts.push(`${d}m from ${shortAddr}`);
     farChip.classList.toggle("hidden", d <= (state.seed?.far_threshold_m ?? 100));
   } else if (m) {
     parts.push(`MSCP coords not set`);
     farChip.classList.add("hidden");
   } else {
-    parts.push("Select MSCP to check distance");
+    parts.push("Select MSCP address to check distance");
     farChip.classList.add("hidden");
   }
   if (state.geocode?.postal) parts.push(`Postal ${state.geocode.postal}`);
@@ -81,7 +82,7 @@ async function loadSeed() {
   state.seed = await r.json();
   // Driver: option text = name, value = id
   fillRich($("driver"), state.seed.drivers.map(d => ({ value: d.id, label: d.name })), "Select driver");
-  fillRich($("mscp"), state.seed.mscps.map(m => ({ value: m.id, label: m.id })), "Select MSCP");
+  fillRich($("mscp"), state.seed.mscps.map(m => ({ value: m.id, label: m.address || m.id })), "Select MSCP address");
 
   $("driver").addEventListener("change", () => {
     const d = state.seed.drivers.find(x => x.id === $("driver").value);

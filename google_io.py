@@ -145,6 +145,7 @@ def read_seed(sheet_id: str) -> dict:
             "id": mid,
             "lat": _as_float(r.get("Lat")),
             "lon": _as_float(r.get("Long")),
+            "address": (r.get("Address") or "").strip(),
         })
 
     data = {"drivers": drivers, "mscps": mscps}
