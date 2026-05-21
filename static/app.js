@@ -80,19 +80,27 @@ document.querySelectorAll(".tab").forEach(btn => {
 async function loadSeed() {
   const r = await fetch("/api/seed");
   state.seed = await r.json();
-  // Driver: option text = name, value = id
-  fillRich($("driver"), state.seed.drivers.map(d => ({ value: d.id, label: d.name })), "Select driver");
-  fillRich($("mscp"), state.seed.mscps.map(m => ({ value: m.id, label: m.address || m.id })), "Select MSCP address");
-
-  $("driver").addEventListener("change", () => {
-    const d = state.seed.drivers.find(x => x.id === $("driver").value);
-    $("agencyVal").textContent = d?.agency || "—";
-  });
-  $("mscp").addEventListener("change", recomputeDistance);
+  fillRich(
+    $("driver"),
+    state.seed.drivers.map(d => ({ value: d.id, label: d.name })),
+    "Select driver",
+    onDriverChange,
+  );
+  fillRich(
+    $("mscp"),
+    state.seed.mscps.map(m => ({ value: m.id, label: m.address || m.id })),
+    "Select MSCP address",
+    recomputeDistance,
+  );
   updateSubmitEnabled();
 }
 
-function fillRich(sel, items, placeholder) {
+function onDriverChange() {
+  const d = (state.seed?.drivers || []).find(x => x.id === $("driver").value);
+  $("agencyVal").textContent = d?.agency || "—";
+}
+
+function fillRich(sel, items, placeholder, onChange) {
   sel.innerHTML = "";
   const ph = document.createElement("option");
   ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
@@ -105,6 +113,7 @@ function fillRich(sel, items, placeholder) {
   sel.classList.add("unset");
   sel.addEventListener("change", () => {
     sel.classList.toggle("unset", !sel.value);
+    if (onChange) onChange();
     updateSubmitEnabled();
   });
 }
