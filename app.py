@@ -117,6 +117,9 @@ def debug():
         "OAUTH_CLIENT_ID_set": bool(os.environ.get("OAUTH_CLIENT_ID")),
         "OAUTH_CLIENT_SECRET_set": bool(os.environ.get("OAUTH_CLIENT_SECRET")),
         "OAUTH_REFRESH_TOKEN_set": bool(os.environ.get("OAUTH_REFRESH_TOKEN")),
+        "env_keys_starting_O_or_G": sorted(
+            k for k in os.environ.keys() if k.startswith(("O", "G", "DRIVE", "SHEET"))
+        ),
     }
     raw_email = os.environ.get("ONEMAP_EMAIL", "")
     raw_pwd = os.environ.get("ONEMAP_PASSWORD", "")
