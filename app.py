@@ -118,13 +118,18 @@ def debug():
         "OAUTH_CLIENT_SECRET_set": bool(os.environ.get("OAUTH_CLIENT_SECRET")),
         "OAUTH_REFRESH_TOKEN_set": bool(os.environ.get("OAUTH_REFRESH_TOKEN")),
     }
+    raw_email = os.environ.get("ONEMAP_EMAIL", "")
+    raw_pwd = os.environ.get("ONEMAP_PASSWORD", "")
+    out["onemap_email_raw_len"] = len(raw_email)
+    out["onemap_email_stripped_len"] = len(raw_email.strip())
+    out["onemap_email_first_5"] = raw_email[:5]
+    out["onemap_email_last_5"] = raw_email[-5:]
+    out["onemap_pwd_raw_len"] = len(raw_pwd)
+    out["onemap_pwd_stripped_len"] = len(raw_pwd.strip())
     try:
         r = requests.post(
             "https://www.onemap.gov.sg/api/auth/post/getToken",
-            json={
-                "email": os.environ.get("ONEMAP_EMAIL", ""),
-                "password": os.environ.get("ONEMAP_PASSWORD", ""),
-            },
+            json={"email": raw_email.strip(), "password": raw_pwd.strip()},
             timeout=10,
         )
         out["onemap_status"] = r.status_code
