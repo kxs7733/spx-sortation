@@ -26,7 +26,42 @@ function toast(msg, kind) {
 }
 
 function updateSubmitEnabled() {
-  $("submitBtn").disabled = !(state.geoOk && state.photoFile && $("driver").value && $("agency").value && $("mscp").value);
+  $("submitBtn").disabled = !(state.geoOk && state.photoFile && $("driver").value && $("mscp").value);
+}
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function selectedMscp() {
+  const id = $("mscp").value;
+  return (state.seed?.mscps || []).find(m => m.id === id);
+}
+
+function recomputeDistance() {
+  const sub = $("locSub");
+  const farChip = $("farChip");
+  const m = selectedMscp();
+  if (!state.geoOk) return;
+  const parts = [];
+  if (m && m.lat != null && m.lon != null) {
+    const d = Math.round(haversineM(state.lat, state.lon, m.lat, m.lon));
+    parts.push(`${d}m from ${m.id}`);
+    farChip.classList.toggle("hidden", d <= (state.seed?.far_threshold_m ?? 100));
+  } else if (m) {
+    parts.push(`MSCP coords not set`);
+    farChip.classList.add("hidden");
+  } else {
+    parts.push("Select MSCP to check distance");
+    farChip.classList.add("hidden");
+  }
+  if (state.geocode?.postal) parts.push(`Postal ${state.geocode.postal}`);
+  sub.textContent = parts.join(" · ");
 }
 
 // ============== tabs ==============
@@ -44,20 +79,26 @@ document.querySelectorAll(".tab").forEach(btn => {
 async function loadSeed() {
   const r = await fetch("/api/seed");
   state.seed = await r.json();
-  fill($("driver"), state.seed.drivers, "Select driver");
-  fill($("agency"), state.seed.agencies, "Select agency");
-  fill($("mscp"), state.seed.mscps.map(m => m.id), "Select MSCP");
+  // Driver: option text = name, value = id
+  fillRich($("driver"), state.seed.drivers.map(d => ({ value: d.id, label: d.name })), "Select driver");
+  fillRich($("mscp"), state.seed.mscps.map(m => ({ value: m.id, label: m.id })), "Select MSCP");
+
+  $("driver").addEventListener("change", () => {
+    const d = state.seed.drivers.find(x => x.id === $("driver").value);
+    $("agencyVal").textContent = d?.agency || "—";
+  });
+  $("mscp").addEventListener("change", recomputeDistance);
   updateSubmitEnabled();
 }
 
-function fill(sel, items, placeholder) {
+function fillRich(sel, items, placeholder) {
   sel.innerHTML = "";
   const ph = document.createElement("option");
   ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
   sel.appendChild(ph);
-  items.forEach(v => {
+  items.forEach(({ value, label }) => {
     const o = document.createElement("option");
-    o.value = v; o.textContent = v;
+    o.value = value; o.textContent = label;
     sel.appendChild(o);
   });
   sel.classList.add("unset");
@@ -86,16 +127,10 @@ function locate() {
         const g = await r.json();
         state.geocode = g;
         $("locAddr").textContent = g.address || `${state.lat.toFixed(5)}, ${state.lon.toFixed(5)}`;
-        const subBits = [];
-        if (g.distance_m !== undefined) subBits.push(`${g.distance_m}m away`);
-        if (g.postal) subBits.push(`Postal ${g.postal}`);
-        $("locSub").textContent = subBits.join(" · ") || "Located";
-        $("farChip").classList.toggle("hidden", !g.far);
-        // Don't auto-select MSCP — driver must consciously pick
       } catch (e) {
         $("locAddr").textContent = `${state.lat.toFixed(5)}, ${state.lon.toFixed(5)}`;
-        $("locSub").textContent = "Address lookup failed";
       }
+      recomputeDistance();
       updateSubmitEnabled();
     },
     (err) => {
@@ -147,7 +182,6 @@ $("submitBtn").addEventListener("click", async () => {
 
   const fd = new FormData();
   fd.append("driver_id", $("driver").value);
-  fd.append("agency", $("agency").value);
   fd.append("mscp_id", $("mscp").value);
   fd.append("lat", state.lat);
   fd.append("lon", state.lon);

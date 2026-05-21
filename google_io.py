@@ -38,6 +38,8 @@ def _user_credentials():
 
 _sheets = None
 _drive = None
+_seed_cache = {"data": None, "ts": 0}
+_SEED_TTL = 60  # seconds
 
 
 def sheets():
@@ -91,6 +93,64 @@ def read_rows(sheet_id: str, limit: int = 200) -> list:
         rows.append({headers[i]: (v[i] if i < len(v) else "") for i in range(len(headers))})
     rows.reverse()  # newest first
     return rows[:limit]
+
+
+def _rows(sheet_id: str, tab: str) -> list:
+    """Read a tab as list of dicts keyed by row 1 headers."""
+    resp = sheets().spreadsheets().values().get(
+        spreadsheetId=sheet_id, range=f"{tab}!A1:Z1000"
+    ).execute()
+    values = resp.get("values", [])
+    if not values:
+        return []
+    headers = values[0]
+    out = []
+    for v in values[1:]:
+        row = {headers[i]: (v[i] if i < len(v) else "") for i in range(len(headers))}
+        out.append(row)
+    return out
+
+
+def _as_float(s):
+    try:
+        return float(str(s).strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def read_seed(sheet_id: str) -> dict:
+    """Drivers + MSCPs from sheet tabs, cached for _SEED_TTL seconds."""
+    import time
+    now = time.time()
+    if _seed_cache["data"] and now - _seed_cache["ts"] < _SEED_TTL:
+        return _seed_cache["data"]
+
+    drivers = []
+    for r in _rows(sheet_id, "Drivers"):
+        did = (r.get("Driver ID") or "").strip()
+        if not did:
+            continue
+        drivers.append({
+            "id": did,
+            "name": (r.get("Driver Name") or did).strip(),
+            "agency": (r.get("Agency") or "").strip(),
+        })
+
+    mscps = []
+    for r in _rows(sheet_id, "MSCP"):
+        mid = (r.get("MSCP ID") or "").strip()
+        if not mid:
+            continue
+        mscps.append({
+            "id": mid,
+            "lat": _as_float(r.get("Lat")),
+            "lon": _as_float(r.get("Long")),
+        })
+
+    data = {"drivers": drivers, "mscps": mscps}
+    _seed_cache["data"] = data
+    _seed_cache["ts"] = now
+    return data
 
 
 def upload_photo(folder_id: str, filename: str, data: bytes, mime: str = "image/jpeg") -> str:

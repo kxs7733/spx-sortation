@@ -5,8 +5,6 @@ import time
 
 import requests
 
-from config import MSCPS
-
 _token_cache = {"token": None, "expires": 0}
 
 
@@ -43,15 +41,11 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def nearest_mscp(lat: float, lon: float):
-    best = None
-    best_d = float("inf")
-    for m in MSCPS:
-        d = haversine_m(lat, lon, m["lat"], m["lon"])
-        if d < best_d:
-            best_d = d
-            best = m
-    return best, best_d
+def distance_to_mscp(lat: float, lon: float, mscp: dict):
+    """Returns distance in meters to the given MSCP, or None if MSCP lacks coords."""
+    if not mscp or mscp.get("lat") is None or mscp.get("lon") is None:
+        return None
+    return haversine_m(lat, lon, mscp["lat"], mscp["lon"])
 
 
 def reverse_geocode(lat: float, lon: float) -> dict:

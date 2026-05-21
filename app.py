@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("spx")
 
 import google_io
-from config import AGENCIES, DRIVERS, FAR_THRESHOLD_METERS, MSCPS, SHEET_HEADERS
-from geo import nearest_mscp, reverse_geocode
+from config import FAR_THRESHOLD_METERS, SHEET_HEADERS
+from geo import distance_to_mscp, reverse_geocode
 
 SHEET_ID = os.environ.get("SHEET_ID", "1eLw6DmMzJpsO4BoRvxXkh6tvjM_p_mEWBXfch0iRrM0")
 DRIVE_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "")
@@ -30,10 +30,10 @@ def index():
 
 @app.route("/api/seed")
 def seed():
+    data = google_io.read_seed(SHEET_ID)
     return jsonify({
-        "drivers": DRIVERS,
-        "agencies": AGENCIES,
-        "mscps": MSCPS,
+        "drivers": data["drivers"],
+        "mscps": data["mscps"],
         "far_threshold_m": FAR_THRESHOLD_METERS,
     })
 
@@ -43,13 +43,9 @@ def geocode():
     lat = float(request.args.get("lat"))
     lon = float(request.args.get("lon"))
     info = reverse_geocode(lat, lon)
-    m, d = nearest_mscp(lat, lon)
     return jsonify({
         "address": info["address"],
         "postal": info["postal"],
-        "nearest_mscp": m,
-        "distance_m": round(d),
-        "far": d > FAR_THRESHOLD_METERS,
     })
 
 
@@ -57,22 +53,29 @@ def geocode():
 def submit():
     try:
         driver_id = request.form.get("driver_id", "").strip()
-        agency = request.form.get("agency", "").strip()
         mscp_id = request.form.get("mscp_id", "").strip()
         lat_raw = request.form.get("lat", "")
         lon_raw = request.form.get("lon", "")
         photo = request.files.get("photo")
 
-        if not (driver_id and agency and mscp_id and photo and lat_raw and lon_raw):
+        if not (driver_id and mscp_id and photo and lat_raw and lon_raw):
             return jsonify({"error": "Missing required fields"}), 400
 
         lat = float(lat_raw)
         lon = float(lon_raw)
 
         info = reverse_geocode(lat, lon)
-        _, distance_m = nearest_mscp(lat, lon)
-        distance_m = round(distance_m)
-        status = "Review" if distance_m > FAR_THRESHOLD_METERS else "Valid"
+        seed_data = google_io.read_seed(SHEET_ID)
+        driver = next((d for d in seed_data["drivers"] if d["id"] == driver_id), None)
+        agency = driver["agency"] if driver else ""
+        mscp = next((m for m in seed_data["mscps"] if m["id"] == mscp_id), None)
+        raw_dist = distance_to_mscp(lat, lon, mscp)
+        if raw_dist is None:
+            distance_m = ""
+            status = "Review"  # can't verify without coords
+        else:
+            distance_m = round(raw_dist)
+            status = "Review" if distance_m > FAR_THRESHOLD_METERS else "Valid"
         timestamp = datetime.now(SGT).strftime("%Y-%m-%d %H:%M:%S")
 
         ext = (photo.filename.rsplit(".", 1)[-1] if "." in photo.filename else "jpg").lower()
