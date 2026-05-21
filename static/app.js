@@ -44,20 +44,27 @@ document.querySelectorAll(".tab").forEach(btn => {
 async function loadSeed() {
   const r = await fetch("/api/seed");
   state.seed = await r.json();
-  fill($("driver"), state.seed.drivers);
-  fill($("agency"), state.seed.agencies);
-  fill($("mscp"), state.seed.mscps.map(m => m.id));
+  fill($("driver"), state.seed.drivers, "Select driver");
+  fill($("agency"), state.seed.agencies, "Select agency");
+  fill($("mscp"), state.seed.mscps.map(m => m.id), "Select MSCP");
   updateSubmitEnabled();
 }
 
-function fill(sel, items) {
+function fill(sel, items, placeholder) {
   sel.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
+  sel.appendChild(ph);
   items.forEach(v => {
     const o = document.createElement("option");
     o.value = v; o.textContent = v;
     sel.appendChild(o);
   });
-  sel.addEventListener("change", updateSubmitEnabled);
+  sel.classList.add("unset");
+  sel.addEventListener("change", () => {
+    sel.classList.toggle("unset", !sel.value);
+    updateSubmitEnabled();
+  });
 }
 
 // ============== geolocation ==============
@@ -84,7 +91,7 @@ function locate() {
         if (g.postal) subBits.push(`Postal ${g.postal}`);
         $("locSub").textContent = subBits.join(" · ") || "Located";
         $("farChip").classList.toggle("hidden", !g.far);
-        if (g.nearest_mscp) $("mscp").value = g.nearest_mscp.id;
+        // Don't auto-select MSCP — driver must consciously pick
       } catch (e) {
         $("locAddr").textContent = `${state.lat.toFixed(5)}, ${state.lon.toFixed(5)}`;
         $("locSub").textContent = "Address lookup failed";

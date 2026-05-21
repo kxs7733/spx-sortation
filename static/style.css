@@ -152,15 +152,24 @@ main { padding: 14px; }
 .kv-input {
   width: 100%;
   border: none;
+  border-bottom: 1.5px solid #D1D5DB;
   background: transparent;
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
-  padding: 0;
+  padding: 2px 22px 4px 0;
   font-family: inherit;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%23EE4D2D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='1 1.5 6 6.5 11 1.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  cursor: pointer;
+}
+.kv-input.unset {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
 }
 
 /* ------- DROPZONE ------- */
