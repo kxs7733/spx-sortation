@@ -15,8 +15,8 @@ def _onemap_token():
     now = time.time()
     if _token_cache["token"] and now < _token_cache["expires"] - 3600:
         return _token_cache["token"]
-    email = os.environ.get("ONEMAP_EMAIL")
-    pwd = os.environ.get("ONEMAP_PASSWORD")
+    email = (os.environ.get("ONEMAP_EMAIL") or "").strip()
+    pwd = (os.environ.get("ONEMAP_PASSWORD") or "").strip()
     if not (email and pwd):
         return None
     try:
